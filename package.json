@@ -2,8 +2,9 @@
   "name": "vscode-rds-explorer",
   "displayName": "RDS Explorer",
   "description": "VS Code extension for exploring AWS RDS databases via RDS Data API",
+  "author": "vamshi krishna",
   "version": "0.1.0",
-  "publisher": "vscode-rds-explorer",
+  "publisher": "vamshi-krishna",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -18,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/vscode-rds-explorer"
+    "url": "https://github.com/k-vamshi/vscode-rds-explorer"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -251,7 +252,7 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "pretest": "pnpm compile && pnpm lint",
     "test": "node ./out/test/runTest.js",
-    "publish": "pnpm dlx @vscode/vsce package"
+    "build": "npx --yes @vscode/vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

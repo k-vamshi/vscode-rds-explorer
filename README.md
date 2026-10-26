@@ -66,3 +66,7 @@ Use the query icon beside a connection name to open a blank SQL editor associate
 ```
 VS Code UI → Extension API → AWS SDK → RDS Data API → PostgreSQL
 ```
+
+## Author
+
+vamshi krishna
