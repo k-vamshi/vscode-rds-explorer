@@ -1,0 +1,274 @@
+{
+  "name": "vscode-rds-explorer",
+  "displayName": "RDS Explorer",
+  "description": "VS Code extension for exploring AWS RDS databases via RDS Data API",
+  "version": "0.1.0",
+  "publisher": "vscode-rds-explorer",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other",
+    "Language Packs"
+  ],
+  "icon": "resources/icon.png",
+  "galleryBanner": {
+    "color": "#2B2D31",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/vscode-rds-explorer"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:rdsExplorer",
+    "onView:rdsQueryHistory",
+    "onCommand:rds-explorer.openConnection",
+    "onCommand:rds-explorer.editConnection",
+    "onCommand:rds-explorer.deleteConnection",
+    "onCommand:rds-explorer.newQuery",
+    "onCommand:rds-explorer.selectQueryConnection",
+    "onCommand:rds-explorer.executeQuery",
+    "onCommand:rds-explorer.runHistoryQuery",
+    "onCommand:rds-explorer.selectTop10",
+    "onCommand:rds-explorer.viewViewCode",
+    "onCommand:rds-explorer.viewFunctionCode",
+    "onCommand:rds-explorer.viewProcedureCode",
+    "onCommand:rds-explorer.viewTriggerCode",
+    "onCommand:rds-explorer.viewTypeCode",
+    "onCommand:rds-explorer.viewSequenceCode"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "rds-explorer-container",
+          "title": "RDS Explorer",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "rds-explorer-container": [
+        {
+          "id": "rdsExplorer",
+          "name": "Database Connections",
+          "icon": "$(database)",
+          "when": "true"
+        },
+        {
+          "id": "rdsQueryHistory",
+          "name": "Query History",
+          "icon": "$(history)",
+          "when": "true"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "rds-explorer.openConnection",
+        "title": "Open Connection",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rds-explorer.editConnection",
+        "title": "Edit Connection",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "rds-explorer.deleteConnection",
+        "title": "Delete Connection",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "rds-explorer.newQuery",
+        "title": "New Query",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "rds-explorer.selectQueryConnection",
+        "title": "Select Query Connection",
+        "icon": "$(database)"
+      },
+      {
+        "command": "rds-explorer.executeQuery",
+        "title": "Execute Query",
+        "icon": "$(play)"
+      },
+      {
+        "command": "rds-explorer.runHistoryQuery",
+        "title": "Run Query",
+        "icon": "$(play)"
+      },
+      {
+        "command": "rds-explorer.selectTop10",
+        "title": "Select Top 10 Rows",
+        "icon": "$(table)"
+      },
+      {
+        "command": "rds-explorer.refreshExplorer",
+        "title": "Refresh Explorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "rds-explorer.viewColumnConstraints",
+        "title": "View Column Constraints",
+        "icon": "$(info)"
+      },
+      {
+        "command": "rds-explorer.viewForeignKeys",
+        "title": "View Foreign Key Relationships",
+        "icon": "$(link)"
+      },
+      {
+        "command": "rds-explorer.viewViewCode",
+        "title": "View View Definition",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "rds-explorer.viewFunctionCode",
+        "title": "View Function Definition",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "rds-explorer.viewProcedureCode",
+        "title": "View Procedure Definition",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "rds-explorer.viewTriggerCode",
+        "title": "View Trigger Definition",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "rds-explorer.viewTypeCode",
+        "title": "View Type Definition",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "rds-explorer.viewSequenceCode",
+        "title": "View Sequence Definition",
+        "icon": "$(file-code)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "rds-explorer.openConnection",
+          "when": "view == rdsExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "rds-explorer.refreshExplorer",
+          "when": "view == rdsExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "rds-explorer.selectTop10",
+          "when": "view == rdsExplorer && viewItem == table",
+          "group": "1_query@1"
+        },
+        {
+          "command": "rds-explorer.newQuery",
+          "when": "view == rdsExplorer && viewItem == connection",
+          "group": "inline"
+        },
+        {
+          "command": "rds-explorer.runHistoryQuery",
+          "when": "view == rdsQueryHistory && viewItem == queryHistoryItem",
+          "group": "inline"
+        },
+        {
+          "command": "rds-explorer.editConnection",
+          "when": "view == rdsExplorer && viewItem == connection",
+          "group": "2_connection@1"
+        },
+        {
+          "command": "rds-explorer.deleteConnection",
+          "when": "view == rdsExplorer && viewItem == connection",
+          "group": "2_connection@2"
+        },
+        {
+          "command": "rds-explorer.viewViewCode",
+          "when": "view == rdsExplorer && viewItem == view",
+          "group": "3_definition@1"
+        },
+        {
+          "command": "rds-explorer.viewFunctionCode",
+          "when": "view == rdsExplorer && viewItem == function",
+          "group": "3_definition@1"
+        },
+        {
+          "command": "rds-explorer.viewProcedureCode",
+          "when": "view == rdsExplorer && viewItem == procedure",
+          "group": "3_definition@1"
+        },
+        {
+          "command": "rds-explorer.viewTriggerCode",
+          "when": "view == rdsExplorer && viewItem == trigger",
+          "group": "3_definition@1"
+        },
+        {
+          "command": "rds-explorer.viewTypeCode",
+          "when": "view == rdsExplorer && viewItem == type",
+          "group": "3_definition@1"
+        },
+        {
+          "command": "rds-explorer.viewSequenceCode",
+          "when": "view == rdsExplorer && viewItem == sequence",
+          "group": "3_definition@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "rds-explorer.executeQuery",
+          "when": "editorLangId == sql",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "rds-explorer.executeQuery",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorLangId == sql && editorFocus"
+      }
+    ]
+  },
+  "packageManager": "pnpm@8.0.0",
+  "scripts": {
+    "vscode:prepublish": "pnpm compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "pretest": "pnpm compile && pnpm lint",
+    "test": "node ./out/test/runTest.js",
+    "publish": "pnpm dlx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/test-cli": "^0.0.1",
+    "@vscode/test-electron": "^2.3.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-rds-data": "^3.400.0",
+    "@aws-sdk/credential-provider-node": "^3.400.0",
+    "@aws-sdk/types": "^3.400.0"
+  }
+}
