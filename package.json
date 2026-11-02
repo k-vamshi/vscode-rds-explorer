@@ -3,7 +3,7 @@
   "displayName": "RDS Explorer",
   "description": "VS Code extension for exploring AWS RDS databases via RDS Data API",
   "author": "vamshi krishna",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "vamshi-krishna",
   "engines": {
     "vscode": "^1.75.0"
