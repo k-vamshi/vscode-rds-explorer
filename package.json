@@ -179,6 +179,11 @@
           "group": "inline"
         },
         {
+          "command": "rds-explorer.newQuery",
+          "when": "view == rdsExplorer && viewItem == schema",
+          "group": "inline"
+        },
+        {
           "command": "rds-explorer.runHistoryQuery",
           "when": "view == rdsQueryHistory && viewItem == queryHistoryItem",
           "group": "inline"
