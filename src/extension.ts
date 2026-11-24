@@ -71,6 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     registerCommands(context, connectionManager, databaseExplorerProvider, queryHistoryProvider);
     updateQueryConnectionStatus();
+    void promptReloadAfterUpdate(context);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     outputChannel.appendLine(`Activation failed: ${errorMsg}`);
@@ -595,3 +596,19 @@ async function executeSqlQuery(
 }
 
 export function deactivate() {}
+
+// After an in-place update the new code runs before VS Code registers new views/commands
+async function promptReloadAfterUpdate(context: vscode.ExtensionContext): Promise<void> {
+  const commands = await vscode.commands.getCommands(true);
+  if (commands.includes(`${ResultsViewProvider.viewId}.focus`)) {
+    return;
+  }
+
+  const choice = await vscode.window.showInformationMessage(
+    `RDS Explorer was updated to v${context.extension.packageJSON.version}. Reload the window to finish the update.`,
+    'Reload Window'
+  );
+  if (choice === 'Reload Window') {
+    await vscode.commands.executeCommand('workbench.action.reloadWindow');
+  }
+}

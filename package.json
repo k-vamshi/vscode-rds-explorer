@@ -3,7 +3,7 @@
   "displayName": "RDS Explorer",
   "description": "VS Code extension for exploring AWS RDS databases via RDS Data API",
   "author": "vamshi krishna",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "publisher": "vamshi-krishna",
   "engines": {
@@ -190,22 +190,70 @@
     ],
     "menus": {
       "commandPalette": [
-        { "command": "rds-explorer.editConnection", "when": "false" },
-        { "command": "rds-explorer.deleteConnection", "when": "false" },
-        { "command": "rds-explorer.setConnectionColor", "when": "false" },
-        { "command": "rds-explorer.runHistoryQuery", "when": "false" },
-        { "command": "rds-explorer.selectTop10", "when": "false" },
-        { "command": "rds-explorer.viewColumnConstraints", "when": "false" },
-        { "command": "rds-explorer.viewForeignKeys", "when": "false" },
-        { "command": "rds-explorer.viewViewCode", "when": "false" },
-        { "command": "rds-explorer.viewFunctionCode", "when": "false" },
-        { "command": "rds-explorer.viewProcedureCode", "when": "false" },
-        { "command": "rds-explorer.viewTriggerCode", "when": "false" },
-        { "command": "rds-explorer.viewTypeCode", "when": "false" },
-        { "command": "rds-explorer.viewSequenceCode", "when": "false" },
-        { "command": "rds-explorer.openDefinitionAsQuery", "when": "resourceScheme == rds-definition" },
-        { "command": "rds-explorer.executeQuery", "when": "editorLangId == sql" },
-        { "command": "rds-explorer.selectQueryConnection", "when": "editorLangId == sql" }
+        {
+          "command": "rds-explorer.editConnection",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.deleteConnection",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.setConnectionColor",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.runHistoryQuery",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.selectTop10",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewColumnConstraints",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewForeignKeys",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewViewCode",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewFunctionCode",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewProcedureCode",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewTriggerCode",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewTypeCode",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.viewSequenceCode",
+          "when": "false"
+        },
+        {
+          "command": "rds-explorer.openDefinitionAsQuery",
+          "when": "resourceScheme == rds-definition"
+        },
+        {
+          "command": "rds-explorer.executeQuery",
+          "when": "editorLangId == sql"
+        },
+        {
+          "command": "rds-explorer.selectQueryConnection",
+          "when": "editorLangId == sql"
+        }
       ],
       "view/title": [
         {
