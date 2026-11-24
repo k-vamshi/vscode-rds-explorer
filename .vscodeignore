@@ -4,5 +4,12 @@ out/test/**
 src/**
 .gitignore
 .yarnrc
-*.map
-*.ts
+**/*.map
+**/*.ts
+docs/**
+.eslintrc.json
+.prettierrc.json
+.prettierignore
+tsconfig.json
+**/.DS_Store
+*.vsix

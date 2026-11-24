@@ -1,91 +1,80 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from './services/connectionManager';
 import { DatabaseMetadata } from './services/databaseMetadata';
+import { QueryEditorBindings } from './services/queryEditorBindings';
 import { RDSDataAPIClient } from './services/rdsDataApi';
 import { DBConnection } from './types';
 import { DatabaseExplorerProvider, ExplorerItem } from './ui/databaseExplorer';
 import { QueryHistoryNode, QueryHistoryProvider } from './ui/queryHistory';
 import { ResultsViewProvider } from './ui/resultsViewer';
 import { ConstraintsDetailProvider } from './ui/constraintsDetail';
-import { CodeViewerProvider } from './ui/codeViewer';
+import { CodeViewerProvider, DEFINITION_SCHEME, DefinitionKind } from './ui/codeViewer';
+import {
+  CONNECTION_COLORS,
+  QueryEditorCodeLensProvider,
+  QueryEditorDecorationProvider,
+  connectionThemeColor,
+} from './ui/queryEditorDecorations';
 
-let connectionManager: ConnectionManager;
-let databaseExplorerProvider: DatabaseExplorerProvider;
 let outputChannel: vscode.OutputChannel;
 let resultsViewProvider: ResultsViewProvider;
 let constraintsDetailProvider: ConstraintsDetailProvider;
 let codeViewerProvider: CodeViewerProvider;
-let queryConnectionStatusItem: vscode.StatusBarItem | undefined;
-const queryConnectionIds = new Map<string, string>();
+let queryEditorBindings: QueryEditorBindings;
+let queryConnectionStatusItem: vscode.StatusBarItem;
 
 type ConnectionDetails = Omit<DBConnection, 'id'>;
 
 export function activate(context: vscode.ExtensionContext) {
-  try {
-    outputChannel = vscode.window.createOutputChannel('RDS Explorer');
-    outputChannel.appendLine('🚀 RDS Explorer extension is starting...');
-    console.log('[RDS Explorer] Extension activating...');
+  outputChannel = vscode.window.createOutputChannel('RDS Explorer');
+  context.subscriptions.push(outputChannel);
 
-    // Initialize services
-    outputChannel.appendLine('Initializing ConnectionManager...');
-    connectionManager = new ConnectionManager(context);
-    outputChannel.appendLine('✓ ConnectionManager initialized');
+  try {
+    const connectionManager = new ConnectionManager(context);
+    const databaseExplorerProvider = new DatabaseExplorerProvider(connectionManager);
+    const queryHistoryProvider = new QueryHistoryProvider();
+    queryEditorBindings = new QueryEditorBindings(context, connectionManager);
+    resultsViewProvider = new ResultsViewProvider(context.extensionUri);
+    constraintsDetailProvider = new ConstraintsDetailProvider();
+    codeViewerProvider = new CodeViewerProvider();
 
     queryConnectionStatusItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Left,
       100
     );
     queryConnectionStatusItem.command = 'rds-explorer.selectQueryConnection';
-    context.subscriptions.push(queryConnectionStatusItem);
+
     context.subscriptions.push(
-      vscode.window.onDidChangeActiveTextEditor(() => {
-        updateQueryConnectionStatus(connectionManager);
-      })
+      queryEditorBindings,
+      queryConnectionStatusItem,
+      vscode.window.registerTreeDataProvider('rdsExplorer', databaseExplorerProvider),
+      vscode.window.registerTreeDataProvider('rdsQueryHistory', queryHistoryProvider),
+      vscode.window.registerWebviewViewProvider(ResultsViewProvider.viewId, resultsViewProvider, {
+        webviewOptions: { retainContextWhenHidden: true },
+      }),
+      vscode.window.registerFileDecorationProvider(
+        new QueryEditorDecorationProvider(queryEditorBindings)
+      ),
+      vscode.languages.registerCodeLensProvider(
+        [
+          { language: 'sql', scheme: 'file' },
+          { language: 'sql', scheme: 'untitled' },
+        ],
+        new QueryEditorCodeLensProvider(queryEditorBindings)
+      ),
+      codeViewerProvider,
+      vscode.workspace.registerTextDocumentContentProvider(DEFINITION_SCHEME, codeViewerProvider),
+      vscode.languages.registerCodeLensProvider({ scheme: DEFINITION_SCHEME }, codeViewerProvider),
+      vscode.window.onDidChangeActiveTextEditor(updateQueryConnectionStatus),
+      queryEditorBindings.onDidChange(updateQueryConnectionStatus)
     );
 
-    outputChannel.appendLine('Initializing DatabaseExplorerProvider...');
-    databaseExplorerProvider = new DatabaseExplorerProvider(connectionManager);
-    outputChannel.appendLine('✓ DatabaseExplorerProvider initialized');
-
-    outputChannel.appendLine('Initializing ResultsViewProvider...');
-    resultsViewProvider = new ResultsViewProvider(context);
-    outputChannel.appendLine('✓ ResultsViewProvider initialized');
-
-    outputChannel.appendLine('Initializing ConstraintsDetailProvider...');
-    constraintsDetailProvider = new ConstraintsDetailProvider();
-    outputChannel.appendLine('✓ ConstraintsDetailProvider initialized');
-
-    outputChannel.appendLine('Initializing CodeViewerProvider...');
-    codeViewerProvider = new CodeViewerProvider();
-    outputChannel.appendLine('✓ CodeViewerProvider initialized');
-
-    // Register tree view providers
-    outputChannel.appendLine('Registering rdsExplorer tree view...');
-    vscode.window.registerTreeDataProvider('rdsExplorer', databaseExplorerProvider);
-    outputChannel.appendLine('✓ rdsExplorer tree view registered');
-
-    outputChannel.appendLine('Initializing QueryHistoryProvider...');
-    const queryHistoryProvider = new QueryHistoryProvider();
-    outputChannel.appendLine('✓ QueryHistoryProvider initialized');
-
-    outputChannel.appendLine('Registering rdsQueryHistory tree view...');
-    vscode.window.registerTreeDataProvider('rdsQueryHistory', queryHistoryProvider);
-    outputChannel.appendLine('✓ rdsQueryHistory tree view registered');
-
-    // Register commands
-    outputChannel.appendLine('Registering commands...');
     registerCommands(context, connectionManager, databaseExplorerProvider, queryHistoryProvider);
-    outputChannel.appendLine('✓ Commands registered');
-
-    outputChannel.appendLine('🎉 RDS Explorer activated successfully!');
-    console.log('[RDS Explorer] Activation complete');
+    updateQueryConnectionStatus();
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : 'N/A';
-    console.error('[RDS Explorer] Activation failed:', errorMsg);
-    console.error('[RDS Explorer] Stack:', errorStack);
-    outputChannel.appendLine(`❌ ACTIVATION FAILED: ${errorMsg}`);
-    outputChannel.appendLine(`Stack: ${errorStack}`);
+    outputChannel.appendLine(`Activation failed: ${errorMsg}`);
+    outputChannel.appendLine(`Stack: ${error instanceof Error ? error.stack : 'N/A'}`);
     outputChannel.show(true);
     vscode.window.showErrorMessage(`RDS Explorer activation failed: ${errorMsg}`);
     throw error;
@@ -102,27 +91,21 @@ function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('rds-explorer.openConnection', async () => {
       try {
-        outputChannel.appendLine('📝 Opening connection dialog...');
         const details = await promptForConnection();
         if (!details) {
           return;
         }
 
-        outputChannel.appendLine('💾 Saving connection...');
         await connectionManager.addConnection({
           id: `conn-${Date.now()}`,
           ...details,
         });
 
-        outputChannel.appendLine(`✓ Connection saved successfully`);
         vscode.window.showInformationMessage(`Connection "${details.name}" created successfully`);
         databaseExplorerProvider.refresh();
-        outputChannel.appendLine(`✓ Explorer refreshed`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : 'N/A';
-        outputChannel.appendLine(`❌ Error creating connection: ${errorMsg}`);
-        outputChannel.appendLine(`Stack: ${errorStack}`);
+        outputChannel.appendLine(`Error creating connection: ${errorMsg}`);
         vscode.window.showErrorMessage(`Failed to create connection: ${errorMsg}`);
       }
     })
@@ -143,14 +126,44 @@ function registerCommands(
           return;
         }
 
-        await connectionManager.updateConnection({ id: connection.id, ...details });
+        await connectionManager.updateConnection({ ...connection, ...details });
         databaseExplorerProvider.refresh();
+        queryEditorBindings.notifyConnectionsChanged();
         vscode.window.showInformationMessage(`Connection "${details.name}" updated`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Failed to update connection: ${message}`);
       }
     })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'rds-explorer.setConnectionColor',
+      async (item?: ExplorerItem) => {
+        const connectionId = item?.nodeData.connectionId;
+        const connection = connectionId ? connectionManager.getConnection(connectionId) : undefined;
+        if (!connection) {
+          return;
+        }
+
+        const picked = await vscode.window.showQuickPick(
+          CONNECTION_COLORS.map((color) => ({
+            label: color.label,
+            description: color.id === connection.color ? 'current' : undefined,
+            color,
+          })),
+          { placeHolder: `Color for "${connection.name}" (e.g. red for production)` }
+        );
+        if (!picked) {
+          return;
+        }
+
+        await connectionManager.updateConnection({ ...connection, color: picked.color.id });
+        databaseExplorerProvider.refresh();
+        queryEditorBindings.notifyConnectionsChanged();
+      }
+    )
   );
 
   context.subscriptions.push(
@@ -176,6 +189,7 @@ function registerCommands(
         try {
           await connectionManager.removeConnection(connection.id);
           databaseExplorerProvider.refresh();
+          queryEditorBindings.notifyConnectionsChanged();
           vscode.window.showInformationMessage(`Connection "${connection.name}" deleted`);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -185,61 +199,55 @@ function registerCommands(
     )
   );
 
-  // Refresh Explorer
   context.subscriptions.push(
     vscode.commands.registerCommand('rds-explorer.refreshExplorer', () => {
       databaseExplorerProvider.refresh();
     })
   );
 
-  // New Query
   context.subscriptions.push(
     vscode.commands.registerCommand('rds-explorer.newQuery', async (item?: ExplorerItem) => {
-      const nodeData = item?.nodeData;
-      const connectionId = nodeData?.connectionId;
+      const connectionId = item?.nodeData?.connectionId;
       const connection = connectionId ? connectionManager.getConnection(connectionId) : undefined;
-      const doc = await vscode.workspace.openTextDocument({
-        language: 'sql',
-        content: '',
-      });
-      if (connection) {
-        queryConnectionIds.set(doc.uri.toString(), connection.id);
-      }
-      await vscode.window.showTextDocument(doc);
-    })
-  );
-  context.subscriptions.push(
-    vscode.workspace.onDidCloseTextDocument((document) => {
-      queryConnectionIds.delete(document.uri.toString());
-      updateQueryConnectionStatus(connectionManager);
+      await queryEditorBindings.openQueryEditor(connection);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('rds-explorer.selectQueryConnection', async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor || editor.document.languageId !== 'sql') {
-        vscode.window.showWarningMessage('Open a SQL query editor to select its connection');
-        return;
-      }
+    vscode.commands.registerCommand(
+      'rds-explorer.selectQueryConnection',
+      async (uri?: vscode.Uri) => {
+        const document =
+          uri instanceof vscode.Uri
+            ? vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString())
+            : vscode.window.activeTextEditor?.document;
+        if (!document || document.languageId !== 'sql') {
+          vscode.window.showWarningMessage('Open a SQL query editor to select its connection');
+          return;
+        }
+        if (document.uri.scheme === DEFINITION_SCHEME) {
+          return;
+        }
 
-      const connection = await selectConnection(connectionManager);
-      if (!connection) {
-        return;
+        const connection = await pickConnection(connectionManager);
+        if (connection) {
+          await queryEditorBindings.set(document.uri, connection.id);
+        }
       }
-
-      queryConnectionIds.set(editor.document.uri.toString(), connection.id);
-      updateQueryConnectionStatus(connectionManager);
-      vscode.window.showInformationMessage(`Query connection set to "${connection.name}"`);
-    })
+    )
   );
 
-  // Execute Query
   context.subscriptions.push(
-    vscode.commands.registerCommand('rds-explorer.executeQuery', async (connectionId?: string) => {
+    vscode.commands.registerCommand('rds-explorer.executeQuery', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showWarningMessage('No active SQL editor');
+        return;
+      }
+      if (editor.document.uri.scheme === DEFINITION_SCHEME) {
+        vscode.window.showWarningMessage(
+          'Definitions are read-only. Use "Open in Query Editor" to run a copy.'
+        );
         return;
       }
 
@@ -247,21 +255,19 @@ function registerCommands(
         ? ''
         : editor.document.getText(editor.selection);
       const query = (selectedText.trim() ? selectedText : editor.document.getText()).trim();
-      if (!query.trim()) {
+      if (!query) {
         vscode.window.showWarningMessage('No SQL query to execute');
         return;
       }
 
-      const queryConnectionId =
-        (typeof connectionId === 'string' ? connectionId : undefined) ??
-        queryConnectionIds.get(editor.document.uri.toString());
-      const connection = await selectConnection(connectionManager, queryConnectionId);
+      const connection =
+        queryEditorBindings.getConnection(editor.document.uri) ??
+        (await pickConnection(connectionManager));
       if (!connection) {
         return;
       }
 
-      queryConnectionIds.set(editor.document.uri.toString(), connection.id);
-      updateQueryConnectionStatus(connectionManager);
+      await queryEditorBindings.set(editor.document.uri, connection.id);
       await executeSqlQuery(query, connection, queryHistoryProvider);
     })
   );
@@ -284,16 +290,16 @@ function registerCommands(
           return;
         }
 
-        const document = await vscode.workspace.openTextDocument({
-          language: 'sql',
-          content: historyItem.query,
-        });
-        queryConnectionIds.set(document.uri.toString(), connection.id);
-        await vscode.window.showTextDocument(document);
-        updateQueryConnectionStatus(connectionManager);
+        await queryEditorBindings.openQueryEditor(connection, historyItem.query);
         await executeSqlQuery(historyItem.query, connection, queryHistoryProvider);
       }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rds-explorer.clearQueryHistory', () => {
+      queryHistoryProvider.clearHistory();
+    })
   );
 
   context.subscriptions.push(
@@ -308,36 +314,31 @@ function registerCommands(
       }
 
       const query = `SELECT * FROM ${quoteIdentifier(nodeData.schema)}.${quoteIdentifier(nodeData.table)} LIMIT 10;`;
-      const document = await vscode.workspace.openTextDocument({ language: 'sql', content: query });
-      queryConnectionIds.set(document.uri.toString(), connection.id);
-      await vscode.window.showTextDocument(document);
-      await vscode.commands.executeCommand('rds-explorer.executeQuery', connection.id);
+      await queryEditorBindings.openQueryEditor(connection, query);
+      await executeSqlQuery(query, connection, queryHistoryProvider);
     })
   );
 
-  // View Column Constraints
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'rds-explorer.viewColumnConstraints',
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      async (schema: string, table: string, column: string) => {
-        const connection = connectionManager.getConnections()[0];
-        if (!connection) {
-          vscode.window.showWarningMessage('No database connection available');
+      async (item?: ExplorerItem) => {
+        const nodeData = item?.nodeData;
+        const connection = nodeData?.connectionId
+          ? connectionManager.getConnection(nodeData.connectionId)
+          : undefined;
+        if (!connection || !nodeData?.schema || !nodeData.table || !nodeData.column) {
+          vscode.window.showWarningMessage('Select a column in the database explorer');
           return;
         }
-
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        const { DatabaseMetadata } = await import('./services/databaseMetadata');
-        const metadata = new DatabaseMetadata(connection);
 
         try {
           await constraintsDetailProvider.showColumnConstraints(
             context,
-            metadata,
-            schema,
-            table,
-            column
+            new DatabaseMetadata(connection),
+            nodeData.schema,
+            nodeData.table,
+            nodeData.column
           );
         } catch (error) {
           vscode.window.showErrorMessage(
@@ -348,43 +349,37 @@ function registerCommands(
     )
   );
 
-  // View Foreign Key Relationships
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      'rds-explorer.viewForeignKeys',
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      async (schema: string, table: string) => {
-        const connection = connectionManager.getConnections()[0];
-        if (!connection) {
-          vscode.window.showWarningMessage('No database connection available');
-          return;
-        }
-
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        const { DatabaseMetadata } = await import('./services/databaseMetadata');
-        const metadata = new DatabaseMetadata(connection);
-
-        try {
-          await constraintsDetailProvider.showForeignKeyRelationships(
-            context,
-            metadata,
-            schema,
-            table
-          );
-        } catch (error) {
-          vscode.window.showErrorMessage(
-            `Failed to load foreign keys: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
+    vscode.commands.registerCommand('rds-explorer.viewForeignKeys', async (item?: ExplorerItem) => {
+      const nodeData = item?.nodeData;
+      const connection = nodeData?.connectionId
+        ? connectionManager.getConnection(nodeData.connectionId)
+        : undefined;
+      if (!connection || !nodeData?.schema || !nodeData.table) {
+        vscode.window.showWarningMessage('Select a table in the database explorer');
+        return;
       }
-    )
+
+      try {
+        await constraintsDetailProvider.showForeignKeyRelationships(
+          context,
+          new DatabaseMetadata(connection),
+          nodeData.schema,
+          nodeData.table
+        );
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Failed to load foreign keys: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    })
   );
 
   const registerDefinitionCommand = (
     commandId: string,
     field: 'view' | 'function' | 'procedure' | 'trigger' | 'typeInfo' | 'sequence',
-    label: string,
-    showDefinition: (metadata: DatabaseMetadata, schema: string, name: string) => Promise<void>
+    kind: DefinitionKind,
+    fetchDefinition: (metadata: DatabaseMetadata, schema: string, name: string) => Promise<string>
   ) => {
     context.subscriptions.push(
       vscode.commands.registerCommand(commandId, async (item?: ExplorerItem) => {
@@ -395,57 +390,61 @@ function registerCommands(
         const name = nodeData?.[field];
 
         if (!connection || !nodeData?.schema || typeof name !== 'string') {
-          vscode.window.showWarningMessage(`Select a ${label} in the database explorer`);
+          vscode.window.showWarningMessage(`Select a ${kind} in the database explorer`);
           return;
         }
 
         try {
-          await showDefinition(new DatabaseMetadata(connection), nodeData.schema, name);
+          const definition = await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Window, title: `Loading ${kind} ${name}...` },
+            () => fetchDefinition(new DatabaseMetadata(connection), nodeData.schema!, name)
+          );
+          await codeViewerProvider.showDefinition(
+            connection,
+            kind,
+            nodeData.schema,
+            name,
+            definition
+          );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          vscode.window.showErrorMessage(`Failed to load ${label} definition: ${message}`);
+          vscode.window.showErrorMessage(`Failed to load ${kind} definition: ${message}`);
         }
       })
     );
   };
 
-  registerDefinitionCommand('rds-explorer.viewViewCode', 'view', 'view', (metadata, schema, name) =>
-    codeViewerProvider.showViewDefinition(context, metadata, schema, name)
+  registerDefinitionCommand('rds-explorer.viewViewCode', 'view', 'view', (m, s, n) =>
+    m.getViewDefinition(s, n)
   );
-  registerDefinitionCommand(
-    'rds-explorer.viewFunctionCode',
-    'function',
-    'function',
-    (metadata, schema, name) =>
-      codeViewerProvider.showFunctionDefinition(context, metadata, schema, name)
+  registerDefinitionCommand('rds-explorer.viewFunctionCode', 'function', 'function', (m, s, n) =>
+    m.getFunctionDefinition(s, n)
   );
-  registerDefinitionCommand(
-    'rds-explorer.viewProcedureCode',
-    'procedure',
-    'procedure',
-    (metadata, schema, name) =>
-      codeViewerProvider.showProcedureDefinition(context, metadata, schema, name)
+  registerDefinitionCommand('rds-explorer.viewProcedureCode', 'procedure', 'procedure', (m, s, n) =>
+    m.getProcedureDefinition(s, n)
   );
-  registerDefinitionCommand(
-    'rds-explorer.viewTriggerCode',
-    'trigger',
-    'trigger',
-    (metadata, schema, name) =>
-      codeViewerProvider.showTriggerDefinition(context, metadata, schema, name)
+  registerDefinitionCommand('rds-explorer.viewTriggerCode', 'trigger', 'trigger', (m, s, n) =>
+    m.getTriggerDefinition(s, n)
   );
-  registerDefinitionCommand(
-    'rds-explorer.viewTypeCode',
-    'typeInfo',
-    'type',
-    (metadata, schema, name) =>
-      codeViewerProvider.showTypeDefinition(context, metadata, schema, name)
+  registerDefinitionCommand('rds-explorer.viewTypeCode', 'typeInfo', 'type', (m, s, n) =>
+    m.getTypeDefinition(s, n)
   );
-  registerDefinitionCommand(
-    'rds-explorer.viewSequenceCode',
-    'sequence',
-    'sequence',
-    (metadata, schema, name) =>
-      codeViewerProvider.showSequenceDefinition(context, metadata, schema, name)
+  registerDefinitionCommand('rds-explorer.viewSequenceCode', 'sequence', 'sequence', (m, s, n) =>
+    m.getSequenceDefinition(s, n)
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rds-explorer.openDefinitionAsQuery', async () => {
+      const document = vscode.window.activeTextEditor?.document;
+      const connectionId = document ? CodeViewerProvider.connectionIdFor(document.uri) : undefined;
+      if (!document || !connectionId) {
+        return;
+      }
+      await queryEditorBindings.openQueryEditor(
+        connectionManager.getConnection(connectionId),
+        codeViewerProvider.getBody(document.uri) ?? document.getText()
+      );
+    })
   );
 }
 
@@ -519,17 +518,7 @@ async function promptForConnection(
   };
 }
 
-async function selectConnection(
-  manager: ConnectionManager,
-  connectionId?: string
-): Promise<DBConnection | undefined> {
-  if (connectionId) {
-    const connection = manager.getConnection(connectionId);
-    if (connection) {
-      return connection;
-    }
-  }
-
+async function pickConnection(manager: ConnectionManager): Promise<DBConnection | undefined> {
   const connections = manager.getConnections();
   if (connections.length === 0) {
     vscode.window.showWarningMessage('Add a database connection before running a query');
@@ -541,7 +530,7 @@ async function selectConnection(
 
   const selected = await vscode.window.showQuickPick(
     connections.map((connection) => ({
-      label: connection.name,
+      label: `$(database) ${connection.name}`,
       description: `${connection.databaseName} (${connection.region})`,
       connection,
     })),
@@ -554,24 +543,20 @@ function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
 }
 
-function updateQueryConnectionStatus(manager: ConnectionManager): void {
-  if (!queryConnectionStatusItem) {
-    return;
-  }
-
+function updateQueryConnectionStatus(): void {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== 'sql') {
     queryConnectionStatusItem.hide();
     return;
   }
 
-  const connectionId = queryConnectionIds.get(editor.document.uri.toString());
-  const connection = connectionId ? manager.getConnection(connectionId) : undefined;
+  const connection = queryEditorBindings.getConnection(editor.document.uri);
   queryConnectionStatusItem.text = connection
     ? `$(database) ${connection.name}`
     : '$(database) Select connection';
+  queryConnectionStatusItem.color = connection ? connectionThemeColor(connection) : undefined;
   queryConnectionStatusItem.tooltip = connection
-    ? `Query connection: ${connection.name}. Click to change.`
+    ? `Query connection: ${connection.name} (${connection.databaseName}). Click to change.`
     : 'Choose the database connection for this query editor.';
   queryConnectionStatusItem.show();
 }
@@ -584,10 +569,13 @@ async function executeSqlQuery(
   const client = new RDSDataAPIClient(connection);
   try {
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: 'Executing query...' },
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `Executing on ${connection.name}...`,
+      },
       async () => {
         const result = await client.executeQuery(query);
-        await resultsViewProvider.showResults(result, query, connection.name);
+        await resultsViewProvider.showResults(result, query, connection);
       }
     );
     queryHistoryProvider.addQueryToHistory({
@@ -598,9 +586,9 @@ async function executeSqlQuery(
       connectionName: connection.name,
     });
   } catch (error) {
-    vscode.window.showErrorMessage(
-      `Query execution failed: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    outputChannel.appendLine(`[${connection.name}] ${message}`);
+    vscode.window.showErrorMessage(message);
   } finally {
     await client.close();
   }

@@ -6,6 +6,8 @@ export interface DBConnection {
   databaseName: string;
   region: string;
   awsProfile: string;
+  /** Theme color id (e.g. `charts.red`) used to tag editors and results for this connection */
+  color?: string;
 }
 
 export interface SchemaInfo {
@@ -97,7 +99,10 @@ export interface IndexInfo {
 export interface QueryResult {
   rows: Record<string, unknown>[];
   columns: string[];
+  columnTypes?: string[];
   rowCount: number;
+  /** Rows affected by INSERT/UPDATE/DELETE statements */
+  updatedRows?: number;
   executionTime: number;
 }
 

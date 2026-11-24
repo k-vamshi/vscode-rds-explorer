@@ -12,6 +12,8 @@ import {
   ForeignKeyInfo,
 } from '../types';
 
+const quoteIdent = (identifier: string) => `"${identifier.replace(/"/g, '""')}"`;
+
 export class DatabaseMetadata {
   private client: RDSDataAPIClient;
 
@@ -235,9 +237,8 @@ export class DatabaseMetadata {
       return 'Sequence definition not found';
     }
 
-    const quoteIdentifier = (identifier: string) => `"${identifier.replace(/"/g, '""')}"`;
     return [
-      `CREATE SEQUENCE ${quoteIdentifier(schema)}.${quoteIdentifier(sequence.name)}`,
+      `CREATE SEQUENCE ${quoteIdent(schema)}.${quoteIdent(sequence.name)}`,
       `  AS ${sequence.dataType}`,
       `  INCREMENT BY ${sequence.increment}`,
       `  MINVALUE ${sequence.minimumValue}`,
@@ -338,16 +339,19 @@ export class DatabaseMetadata {
 
   async getViewDefinition(schema: string, viewName: string): Promise<string> {
     const result = await this.client.executeQuery(
-      `SELECT view_definition FROM information_schema.views
-       WHERE table_schema = :schema AND table_name = :viewName`,
+      `SELECT pg_get_viewdef(c.oid, true) AS view_definition
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = :schema AND c.relname = :viewName AND c.relkind IN ('v', 'm')`,
       { schema, viewName }
     );
 
     if (result.rows.length === 0) {
-      return 'View definition not found';
+      return '-- View definition not found';
     }
 
-    return (result.rows[0].view_definition as string) || '';
+    const body = ((result.rows[0].view_definition as string) || '').trim();
+    return `CREATE OR REPLACE VIEW ${quoteIdent(schema)}.${quoteIdent(viewName)} AS\n${body}`;
   }
 
   async getFunctionDefinition(schema: string, functionName: string): Promise<string> {

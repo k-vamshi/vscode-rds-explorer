@@ -64,16 +64,20 @@ export class DatabaseExplorerProvider implements vscode.TreeDataProvider<Explore
     if (!element) {
       // Root level: show connections
       const connections = this.connectionManager.getConnections();
-      return connections.map(
-        (conn) =>
-          new ExplorerItem(
-            conn.name,
-            'connection',
-            vscode.TreeItemCollapsibleState.Collapsed,
-            { type: 'connection', connectionId: conn.id },
-            new vscode.ThemeIcon('database')
+      return connections.map((conn) => {
+        const item = new ExplorerItem(
+          conn.name,
+          'connection',
+          vscode.TreeItemCollapsibleState.Collapsed,
+          { type: 'connection', connectionId: conn.id },
+          new vscode.ThemeIcon(
+            'database',
+            conn.color ? new vscode.ThemeColor(conn.color) : undefined
           )
-      );
+        );
+        item.description = `${conn.databaseName} · ${conn.region}`;
+        return item;
+      });
     }
 
     const nodeData = element.nodeData as NodeData;
@@ -324,21 +328,23 @@ export class DatabaseExplorerProvider implements vscode.TreeDataProvider<Explore
         case 'functions-container': {
           const metadata = this.getMetadata(nodeData.connectionId!);
           const functions = await metadata.getFunctions(nodeData.schema!);
-          return functions.map(
-            (fn) =>
-              new ExplorerItem(
-                `${fn.name}() → ${fn.returnType}`,
-                'function',
-                vscode.TreeItemCollapsibleState.None,
-                {
-                  type: 'function',
-                  connectionId: nodeData.connectionId,
-                  schema: nodeData.schema,
-                  function: fn.name,
-                },
-                new vscode.ThemeIcon('symbol-method')
-              )
-          );
+          return functions.map((fn) => {
+            const item = new ExplorerItem(
+              fn.name,
+              'function',
+              vscode.TreeItemCollapsibleState.None,
+              {
+                type: 'function',
+                connectionId: nodeData.connectionId,
+                schema: nodeData.schema,
+                function: fn.name,
+              },
+              new vscode.ThemeIcon('symbol-method')
+            );
+            item.description = `\u2192 ${fn.returnType}`;
+            item.tooltip = `${nodeData.schema}.${fn.name}() \u2192 ${fn.returnType}`;
+            return item;
+          });
         }
 
         case 'procedures-container': {
@@ -364,21 +370,23 @@ export class DatabaseExplorerProvider implements vscode.TreeDataProvider<Explore
         case 'triggers-container': {
           const metadata = this.getMetadata(nodeData.connectionId!);
           const triggers = await metadata.getTriggers(nodeData.schema!);
-          return triggers.map(
-            (trg) =>
-              new ExplorerItem(
-                `${trg.name} (${trg.eventManipulation} on ${trg.tableName})`,
-                'trigger',
-                vscode.TreeItemCollapsibleState.None,
-                {
-                  type: 'trigger',
-                  connectionId: nodeData.connectionId,
-                  schema: nodeData.schema,
-                  trigger: trg.name,
-                },
-                new vscode.ThemeIcon('zap')
-              )
-          );
+          return triggers.map((trg) => {
+            const item = new ExplorerItem(
+              trg.name,
+              'trigger',
+              vscode.TreeItemCollapsibleState.None,
+              {
+                type: 'trigger',
+                connectionId: nodeData.connectionId,
+                schema: nodeData.schema,
+                trigger: trg.name,
+              },
+              new vscode.ThemeIcon('zap')
+            );
+            item.description = `${trg.eventManipulation} on ${trg.tableName}`;
+            item.tooltip = `${trg.name}\n${trg.eventOrientation} ${trg.eventManipulation} on ${nodeData.schema}.${trg.tableName}`;
+            return item;
+          });
         }
 
         case 'sequences-container': {
@@ -386,7 +394,7 @@ export class DatabaseExplorerProvider implements vscode.TreeDataProvider<Explore
           const sequences = await metadata.getSequences(nodeData.schema!);
           return sequences.map((seq) => {
             const item = new ExplorerItem(
-              `${seq.name}: ${seq.dataType}`,
+              seq.name,
               'sequence',
               vscode.TreeItemCollapsibleState.None,
               {
@@ -397,7 +405,7 @@ export class DatabaseExplorerProvider implements vscode.TreeDataProvider<Explore
               },
               new vscode.ThemeIcon('symbol-numeric')
             );
-            item.description = `last ${seq.lastValue ?? 'not available'}, increment ${seq.increment}`;
+            item.description = `${seq.dataType} \u00b7 last ${seq.lastValue ?? '\u2014'}`;
             item.tooltip = [
               `Data type: ${seq.dataType}`,
               `Last stored value: ${seq.lastValue ?? 'not available'}`,
@@ -415,21 +423,22 @@ export class DatabaseExplorerProvider implements vscode.TreeDataProvider<Explore
         case 'types-container': {
           const metadata = this.getMetadata(nodeData.connectionId!);
           const types = await metadata.getTypes(nodeData.schema!);
-          return types.map(
-            (type) =>
-              new ExplorerItem(
-                `${type.name} [${type.kind}]`,
-                'type',
-                vscode.TreeItemCollapsibleState.None,
-                {
-                  type: 'type',
-                  connectionId: nodeData.connectionId,
-                  schema: nodeData.schema,
-                  typeInfo: type.name,
-                },
-                new vscode.ThemeIcon('symbol-type-parameter')
-              )
-          );
+          return types.map((type) => {
+            const item = new ExplorerItem(
+              type.name,
+              'type',
+              vscode.TreeItemCollapsibleState.None,
+              {
+                type: 'type',
+                connectionId: nodeData.connectionId,
+                schema: nodeData.schema,
+                typeInfo: type.name,
+              },
+              new vscode.ThemeIcon('symbol-type-parameter')
+            );
+            item.description = type.kind.toLowerCase();
+            return item;
+          });
         }
 
         default:
@@ -472,5 +481,19 @@ export class ExplorerItem extends vscode.TreeItem {
   ) {
     super(label, collapsibleState);
     this.contextValue = nodeType;
+
+    const definitionCommand = DEFINITION_COMMANDS[nodeType];
+    if (definitionCommand) {
+      this.command = { command: definitionCommand, title: 'Open Definition', arguments: [this] };
+    }
   }
 }
+
+const DEFINITION_COMMANDS: Partial<Record<ExplorerNodeType, string>> = {
+  view: 'rds-explorer.viewViewCode',
+  function: 'rds-explorer.viewFunctionCode',
+  procedure: 'rds-explorer.viewProcedureCode',
+  trigger: 'rds-explorer.viewTriggerCode',
+  type: 'rds-explorer.viewTypeCode',
+  sequence: 'rds-explorer.viewSequenceCode',
+};

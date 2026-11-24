@@ -39,12 +39,16 @@ export class RDSDataAPIClient {
       const response = await this.client.send(command);
       const executionTime = Date.now() - startTime;
 
-      const rows = this.parseResults(response.records || [], response.columnMetadata || []);
+      const columnMetadata = response.columnMetadata || [];
+      const columns = this.uniqueColumnNames(columnMetadata.map((col) => col.name || ''));
+      const rows = this.parseResults(response.records || [], columns);
 
       return {
         rows,
-        columns: (response.columnMetadata || []).map((col) => col.name || ''),
+        columns,
+        columnTypes: columnMetadata.map((col) => col.typeName || ''),
         rowCount: rows.length,
+        updatedRows: response.numberOfRecordsUpdated,
         executionTime,
       };
     } catch (error) {
@@ -54,24 +58,22 @@ export class RDSDataAPIClient {
     }
   }
 
-  private parseResults(
-    records: unknown[] | undefined,
-    columnMetadata:
-      | Array<{
-          name?: string;
-        }>
-      | undefined
-  ): Record<string, unknown>[] {
-    if (!records || !columnMetadata) {
-      return [];
-    }
+  // Joins often return duplicate names (e.g. two `id` columns); suffix them so no values are lost
+  private uniqueColumnNames(names: string[]): string[] {
+    const seen = new Map<string, number>();
+    return names.map((rawName, index) => {
+      const name = rawName || `col_${index}`;
+      const count = (seen.get(name) ?? 0) + 1;
+      seen.set(name, count);
+      return count === 1 ? name : `${name}_${count}`;
+    });
+  }
 
-    return (records as unknown[]).map((record) => {
+  private parseResults(records: unknown[], columns: string[]): Record<string, unknown>[] {
+    return records.map((record) => {
       const row: Record<string, unknown> = {};
-      const recordArray = record as Array<unknown>;
-      recordArray.forEach((value: unknown, index: number) => {
-        const colName = columnMetadata[index]?.name || `col_${index}`;
-        row[colName] = this.parseField(value);
+      (record as unknown[]).forEach((value, index) => {
+        row[columns[index] ?? `col_${index}`] = this.parseField(value);
       });
       return row;
     });
@@ -96,13 +98,15 @@ export class RDSDataAPIClient {
     if (value.isNull) {
       return null;
     }
+    if (value.blobValue) {
+      return `\\x${Buffer.from(value.blobValue).toString('hex')}`;
+    }
 
     return (
       value.stringValue ??
       value.longValue ??
       value.doubleValue ??
       value.booleanValue ??
-      value.blobValue ??
       value.arrayValue ??
       value.structValue ??
       field

@@ -3,14 +3,14 @@
   "displayName": "RDS Explorer",
   "description": "VS Code extension for exploring AWS RDS databases via RDS Data API",
   "author": "vamshi krishna",
-  "version": "0.1.2",
+  "version": "0.2.0",
+  "license": "MIT",
   "publisher": "vamshi-krishna",
   "engines": {
     "vscode": "^1.75.0"
   },
   "categories": [
-    "Other",
-    "Language Packs"
+    "Other"
   ],
   "icon": "resources/icon.png",
   "galleryBanner": {
@@ -23,23 +23,7 @@
   },
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onStartupFinished",
-    "onView:rdsExplorer",
-    "onView:rdsQueryHistory",
-    "onCommand:rds-explorer.openConnection",
-    "onCommand:rds-explorer.editConnection",
-    "onCommand:rds-explorer.deleteConnection",
-    "onCommand:rds-explorer.newQuery",
-    "onCommand:rds-explorer.selectQueryConnection",
-    "onCommand:rds-explorer.executeQuery",
-    "onCommand:rds-explorer.runHistoryQuery",
-    "onCommand:rds-explorer.selectTop10",
-    "onCommand:rds-explorer.viewViewCode",
-    "onCommand:rds-explorer.viewFunctionCode",
-    "onCommand:rds-explorer.viewProcedureCode",
-    "onCommand:rds-explorer.viewTriggerCode",
-    "onCommand:rds-explorer.viewTypeCode",
-    "onCommand:rds-explorer.viewSequenceCode"
+    "onStartupFinished"
   ],
   "contributes": {
     "viewsContainers": {
@@ -49,9 +33,24 @@
           "title": "RDS Explorer",
           "icon": "resources/icon.svg"
         }
+      ],
+      "panel": [
+        {
+          "id": "rds-results-container",
+          "title": "RDS Results",
+          "icon": "resources/icon.svg"
+        }
       ]
     },
     "views": {
+      "rds-results-container": [
+        {
+          "type": "webview",
+          "id": "rdsResults",
+          "name": "Query Results",
+          "icon": "$(table)"
+        }
+      ],
       "rds-explorer-container": [
         {
           "id": "rdsExplorer",
@@ -71,90 +70,143 @@
       {
         "command": "rds-explorer.openConnection",
         "title": "Open Connection",
+        "category": "RDS Explorer",
         "icon": "$(add)"
       },
       {
         "command": "rds-explorer.editConnection",
         "title": "Edit Connection",
+        "category": "RDS Explorer",
         "icon": "$(edit)"
       },
       {
         "command": "rds-explorer.deleteConnection",
         "title": "Delete Connection",
+        "category": "RDS Explorer",
         "icon": "$(trash)"
+      },
+      {
+        "command": "rds-explorer.setConnectionColor",
+        "title": "Set Connection Color",
+        "category": "RDS Explorer",
+        "icon": "$(symbol-color)"
       },
       {
         "command": "rds-explorer.newQuery",
         "title": "New Query",
+        "category": "RDS Explorer",
         "icon": "$(new-file)"
       },
       {
         "command": "rds-explorer.selectQueryConnection",
         "title": "Select Query Connection",
+        "category": "RDS Explorer",
         "icon": "$(database)"
       },
       {
         "command": "rds-explorer.executeQuery",
         "title": "Execute Query",
+        "category": "RDS Explorer",
         "icon": "$(play)"
       },
       {
         "command": "rds-explorer.runHistoryQuery",
         "title": "Run Query",
+        "category": "RDS Explorer",
         "icon": "$(play)"
+      },
+      {
+        "command": "rds-explorer.clearQueryHistory",
+        "title": "Clear Query History",
+        "category": "RDS Explorer",
+        "icon": "$(clear-all)"
       },
       {
         "command": "rds-explorer.selectTop10",
         "title": "Select Top 10 Rows",
+        "category": "RDS Explorer",
         "icon": "$(table)"
       },
       {
         "command": "rds-explorer.refreshExplorer",
         "title": "Refresh Explorer",
+        "category": "RDS Explorer",
         "icon": "$(refresh)"
       },
       {
         "command": "rds-explorer.viewColumnConstraints",
         "title": "View Column Constraints",
+        "category": "RDS Explorer",
         "icon": "$(info)"
       },
       {
         "command": "rds-explorer.viewForeignKeys",
         "title": "View Foreign Key Relationships",
+        "category": "RDS Explorer",
         "icon": "$(link)"
       },
       {
         "command": "rds-explorer.viewViewCode",
         "title": "View View Definition",
+        "category": "RDS Explorer",
         "icon": "$(file-code)"
       },
       {
         "command": "rds-explorer.viewFunctionCode",
         "title": "View Function Definition",
+        "category": "RDS Explorer",
         "icon": "$(file-code)"
       },
       {
         "command": "rds-explorer.viewProcedureCode",
         "title": "View Procedure Definition",
+        "category": "RDS Explorer",
         "icon": "$(file-code)"
       },
       {
         "command": "rds-explorer.viewTriggerCode",
         "title": "View Trigger Definition",
+        "category": "RDS Explorer",
         "icon": "$(file-code)"
       },
       {
         "command": "rds-explorer.viewTypeCode",
         "title": "View Type Definition",
+        "category": "RDS Explorer",
         "icon": "$(file-code)"
       },
       {
         "command": "rds-explorer.viewSequenceCode",
         "title": "View Sequence Definition",
+        "category": "RDS Explorer",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "rds-explorer.openDefinitionAsQuery",
+        "title": "Open in Query Editor",
+        "category": "RDS Explorer",
+        "icon": "$(edit)"
       }
     ],
     "menus": {
+      "commandPalette": [
+        { "command": "rds-explorer.editConnection", "when": "false" },
+        { "command": "rds-explorer.deleteConnection", "when": "false" },
+        { "command": "rds-explorer.setConnectionColor", "when": "false" },
+        { "command": "rds-explorer.runHistoryQuery", "when": "false" },
+        { "command": "rds-explorer.selectTop10", "when": "false" },
+        { "command": "rds-explorer.viewColumnConstraints", "when": "false" },
+        { "command": "rds-explorer.viewForeignKeys", "when": "false" },
+        { "command": "rds-explorer.viewViewCode", "when": "false" },
+        { "command": "rds-explorer.viewFunctionCode", "when": "false" },
+        { "command": "rds-explorer.viewProcedureCode", "when": "false" },
+        { "command": "rds-explorer.viewTriggerCode", "when": "false" },
+        { "command": "rds-explorer.viewTypeCode", "when": "false" },
+        { "command": "rds-explorer.viewSequenceCode", "when": "false" },
+        { "command": "rds-explorer.openDefinitionAsQuery", "when": "resourceScheme == rds-definition" },
+        { "command": "rds-explorer.executeQuery", "when": "editorLangId == sql" },
+        { "command": "rds-explorer.selectQueryConnection", "when": "editorLangId == sql" }
+      ],
       "view/title": [
         {
           "command": "rds-explorer.openConnection",
@@ -165,6 +217,11 @@
           "command": "rds-explorer.refreshExplorer",
           "when": "view == rdsExplorer",
           "group": "navigation"
+        },
+        {
+          "command": "rds-explorer.clearQueryHistory",
+          "when": "view == rdsQueryHistory",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -172,6 +229,16 @@
           "command": "rds-explorer.selectTop10",
           "when": "view == rdsExplorer && viewItem == table",
           "group": "1_query@1"
+        },
+        {
+          "command": "rds-explorer.viewForeignKeys",
+          "when": "view == rdsExplorer && viewItem == table",
+          "group": "3_definition@1"
+        },
+        {
+          "command": "rds-explorer.viewColumnConstraints",
+          "when": "view == rdsExplorer && viewItem == column",
+          "group": "3_definition@1"
         },
         {
           "command": "rds-explorer.newQuery",
@@ -194,9 +261,14 @@
           "group": "2_connection@1"
         },
         {
-          "command": "rds-explorer.deleteConnection",
+          "command": "rds-explorer.setConnectionColor",
           "when": "view == rdsExplorer && viewItem == connection",
           "group": "2_connection@2"
+        },
+        {
+          "command": "rds-explorer.deleteConnection",
+          "when": "view == rdsExplorer && viewItem == connection",
+          "group": "2_connection@3"
         },
         {
           "command": "rds-explorer.viewViewCode",
@@ -232,8 +304,20 @@
       "editor/title": [
         {
           "command": "rds-explorer.executeQuery",
-          "when": "editorLangId == sql",
+          "when": "editorLangId == sql && resourceScheme != rds-definition",
           "group": "navigation"
+        },
+        {
+          "command": "rds-explorer.openDefinitionAsQuery",
+          "when": "resourceScheme == rds-definition",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "rds-explorer.openDefinitionAsQuery",
+          "when": "resourceScheme == rds-definition",
+          "group": "navigation@1"
         }
       ]
     },
@@ -242,21 +326,18 @@
         "command": "rds-explorer.executeQuery",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
-        "when": "editorLangId == sql && editorFocus"
+        "when": "editorLangId == sql && editorFocus && resourceScheme != rds-definition"
       }
     ]
   },
-  "packageManager": "pnpm@8.0.0",
   "scripts": {
-    "vscode:prepublish": "pnpm compile",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
     "lint:fix": "eslint src --ext ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "pretest": "pnpm compile && pnpm lint",
-    "test": "node ./out/test/runTest.js",
     "build": "npx --yes @vscode/vsce package"
   },
   "devDependencies": {
